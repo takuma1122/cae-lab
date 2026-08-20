@@ -1,0 +1,36 @@
+ a KNOT was generated in node            1
+
+ a KNOT was generated in node            4
+
+ a KNOT was generated in node            8
+
+ ELEMENT            1 with label "S8      " and with nodes:
+          1          2          3          4          5          6          7          8
+  is expanded into a "C3D20 L " element with topology:
+         17         31         34         37         19         33         36         39         51         54
+         57         60         53         56         59         62         18         32         35         38
+
+ ELEMENT            2 with label "S8      " and with nodes:
+          9          1          4         10         11          8         12         13
+  is expanded into a "C3D20 L " element with topology:
+         74         20         40         77         76         22         42         79         80         63
+         83         86         82         65         85         88         75         21         41         78
+
+ a MEAN ROTATION MPC was generated in node            9
+                 about the axis (   0.0000000000000000      ,   1.0000000000000000      ,   0.0000000000000000      )
+
+ a MEAN ROTATION MPC was generated in node            9
+                 about the axis (   0.0000000000000000      ,   0.0000000000000000      ,   1.0000000000000000      )
+
+ a MEAN ROTATION MPC was generated in node           10
+                 about the axis (   0.0000000000000000      ,   1.0000000000000000      ,   0.0000000000000000      )
+
+ a MEAN ROTATION MPC was generated in node           10
+                 about the axis (   0.0000000000000000      ,   0.0000000000000000      ,   1.0000000000000000      )
+
+ a MEAN ROTATION MPC was generated in node           13
+                 about the axis (   0.0000000000000000      ,   1.0000000000000000      ,   0.0000000000000000      )
+
+ a MEAN ROTATION MPC was generated in node           13
+                 about the axis (   0.0000000000000000      ,   0.0000000000000000      ,   1.0000000000000000      )
+

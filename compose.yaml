@@ -1,0 +1,37 @@
+services:
+  openfoam:
+    image: opencfd/openfoam-default:2406
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /data
+    volumes:
+      - ./cases/openfoam:/data
+    entrypoint: ["sleep", "infinity"]
+
+  calculix:
+    build:
+      context: docker/calculix
+    image: cae-lab/calculix:2.21
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /data
+    volumes:
+      - ./cases/calculix:/data
+    entrypoint: ["sleep", "infinity"]
+
+  app:
+    build:
+      context: app
+    image: cae-lab/app:v0
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /app
+    environment:
+      SCAN_ROOT: /data
+      HOST_ROOT: ${HOST_CASES_DIR:-./cases}
+      APP_DATA_DIR: /app/data
+      MPLCONFIGDIR: /tmp/matplotlib
+    volumes:
+      - ./app/backend:/app/backend
+      - ./app/static:/app/static
+      - ./app/data:/app/data
+      - ./cases:/data:ro
+    ports:
+      - "8080:8080"

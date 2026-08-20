@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>CAE解析結果管理ツール（v0）</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --panel-bg: #f7f7f7;
+    --fg: #1a1a1a;
+    --border: #d8d8d8;
+    --muted: #6b6b6b;
+    --success-bg: #eafbea;
+    --failed-bg: #fdeaea;
+    --unknown-bg: #fff8e5;
+    --accent: #2d6cdf;
+    --overlay: rgba(0, 0, 0, 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1e;
+      --panel-bg: #262626;
+      --fg: #eaeaea;
+      --border: #3a3a3a;
+      --muted: #a0a0a0;
+      --success-bg: #16321a;
+      --failed-bg: #3a1a1a;
+      --unknown-bg: #3a3018;
+      --accent: #6ea1ff;
+      --overlay: rgba(0, 0, 0, 0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 18px; margin: 0; }
+  #scanRoot { color: var(--muted); font-size: 13px; }
+  main { padding: 16px 24px; }
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  input[type=text], input[type=search] {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  th:hover { color: var(--fg); }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { filter: brightness(0.97); }
+  @media (prefers-color-scheme: dark) {
+    tbody tr:hover { filter: brightness(1.15); }
+  }
+  tr.success { background: var(--success-bg); }
+  tr.failed { background: var(--failed-bg); }
+  tr.unknown { background: var(--unknown-bg); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+  .badge.success { background: #2e8b3d; color: white; }
+  .badge.failed { background: #c0392b; color: white; }
+  .badge.unknown { background: #b8860b; color: white; }
+  .detail { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #empty { color: var(--muted); padding: 24px 0; }
+  .count { color: var(--muted); font-size: 13px; }
+
+  /* --- 詳細パネル --- */
+  #overlay {
+    position: fixed; inset: 0;
+    background: var(--overlay);
+    display: none;
+    z-index: 10;
+  }
+  #overlay.open { display: block; }
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: min(560px, 100vw);
+    background: var(--panel-bg);
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 16px rgba(0,0,0,0.2);
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+    z-index: 11;
+    display: flex;
+    flex-direction: column;
+  }
+  #panel.open { transform: translateX(0); }
+  #panelHeader {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #panelHeader h2 { font-size: 16px; margin: 0; word-break: break-all; }
+  #panelBody { padding: 16px 20px; overflow-y: auto; flex: 1; }
+  .closeBtn {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  section.panel-section { margin-bottom: 20px; }
+  section.panel-section h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+  dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+  dl.kv dt { color: var(--muted); }
+  dl.kv dd { margin: 0; }
+  .mesh-thumb {
+    width: 100%;
+    max-width: 320px;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+  }
+  .path-box {
+    font-family: monospace;
+    font-size: 12px;
+    word-break: break-all;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+  .warning-box {
+    margin-top: 8px;
+    background: var(--unknown-bg);
+    border: 1px solid #b8860b;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .error-box {
+    background: var(--failed-bg);
+    border: 1px solid #c0392b;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  textarea.memo {
+    width: 100%;
+    min-height: 70px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CAE解析結果管理ツール（v0）</h1>
+  <span id="scanRoot"></span>
+</header>
+<main>
+  <div class="toolbar">
+    <button id="refreshBtn">更新</button>
+    <input type="search" id="searchBox" placeholder="ケース名で絞り込み">
+    <span class="count" id="countLabel"></span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th data-key="solver">ソルバー</th>
+        <th data-key="name">ケース名</th>
+        <th data-key="run_date">実行日</th>
+        <th data-key="status">状態</th>
+        <th data-key="timing">計算時間</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="empty" style="display:none">該当するケースがありません。</div>
+</main>
+
+<div id="overlay"></div>
+<div id="panel">
+  <div id="panelHeader">
+    <h2 id="panelTitle"></h2>
+    <button class="closeBtn" id="closeBtn">閉じる ×</button>
+  </div>
+  <div id="panelBody"></div>
+</div>
+
+<script>
+const SOLVER_LABEL = { openfoam: "OpenFOAM", calculix: "CalculiX" };
+const STATUS_LABEL = { success: "正常終了", failed: "途中停止/異常終了", unknown: "判定不能" };
+const REGIME_LABEL = { steady: "定常", transient: "非定常" };
+const LINEARITY_LABEL = { linear: "線形", nonlinear: "非線形" };
+const COMPRESSIBLE_LABEL = { compressible: "圧縮性", incompressible: "非圧縮性" };
+const FLOW_REGIME_LABEL = { laminar: "層流", turbulent: "乱流" };
+const PHASE_LABEL = { single: "単相", multi: "混相" };
+const PROC_CLASS_LABEL = { static: "静解析", dynamic: "動解析", eigen_buckling: "固有値/座屈解析" };
+const PHYSICS_LABEL = { structural: "構造", thermal: "熱", thermal_structural: "熱-構造連成" };
+const DIMENSION_LABEL = { "2d": "2D", "3d": "3D", axisymmetric: "軸対称" };
+
+let allCases = [];
+let sortKey = "run_date";
+let sortAsc = false;
+
+async function fetchCases() {
+  const res = await fetch("/api/cases");
+  const data = await res.json();
+  document.getElementById("scanRoot").textContent = "監視フォルダ: " + data.scan_root_host;
+  allCases = data.cases;
+  render();
+}
+
+function render() {
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  let rows = allCases.filter(c => c.name.toLowerCase().includes(q));
+
+  rows.sort((a, b) => {
+    if (sortKey === "timing") {
+      const cmp = timingSortValue(a.timing) - timingSortValue(b.timing);
+      return sortAsc ? cmp : -cmp;
+    }
+    const va = (a[sortKey] ?? "").toString();
+    const vb = (b[sortKey] ?? "").toString();
+    const cmp = va.localeCompare(vb);
+    return sortAsc ? cmp : -cmp;
+  });
+
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  document.getElementById("countLabel").textContent = rows.length + " 件";
+  document.getElementById("empty").style.display = rows.length ? "none" : "block";
+
+  for (const c of rows) {
+    const tr = document.createElement("tr");
+    tr.className = c.status;
+    tr.innerHTML = `
+      <td>${SOLVER_LABEL[c.solver] ?? c.solver}</td>
+      <td>${escapeHtml(c.name)}</td>
+      <td>${c.run_date ? c.run_date.replace("T", " ") : "-"}</td>
+      <td><span class="badge ${c.status}">${STATUS_LABEL[c.status] ?? c.status}</span></td>
+      <td>${formatTiming(c.timing)}</td>
+    `;
+    tr.addEventListener("click", () => openDetail(c));
+    tbody.appendChild(tr);
+  }
+}
+
+// --- 詳細パネル ---------------------------------------------------------
+function openDetail(c) {
+  document.getElementById("panelTitle").textContent = c.name;
+  document.getElementById("panelBody").innerHTML = buildDetailHtml(c);
+  document.getElementById("overlay").classList.add("open");
+  document.getElementById("panel").classList.add("open");
+
+  const copyBtn = document.getElementById("copyPathBtn");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(c.host_path);
+      copyBtn.textContent = "コピーしました";
+      setTimeout(() => (copyBtn.textContent = "パスをコピー"), 1500);
+    });
+  }
+  const memoBox = document.getElementById("memoBox");
+  if (memoBox) {
+    memoBox.addEventListener("blur", async () => {
+      await fetch("/api/memo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: c.key, memo: memoBox.value }),
+      });
+      c.memo = memoBox.value;
+    });
+  }
+}
+
+function closeDetail() {
+  document.getElementById("overlay").classList.remove("open");
+  document.getElementById("panel").classList.remove("open");
+}
+
+function buildDetailHtml(c) {
+  const t = c.analysis_type || {};
+  const s = c.analysis_settings || {};
+  const d = c.analysis_details || {};
+
+  const errorBox = c.status_detail
+    ? `<section class="panel-section"><h3>停止理由</h3><div class="error-box">${escapeHtml(c.status_detail)}</div></section>`
+    : "";
+
+  const pathSection = `
+    <section class="panel-section">
+      <h3>パス</h3>
+      <div class="path-box">${escapeHtml(c.host_path)}</div>
+      <button class="secondary" id="copyPathBtn">パスをコピー</button>
+    </section>`;
+
+  const summarySection = `
+    <section class="panel-section">
+      <dl class="kv">
+        <dt>ソルバー</dt><dd>${SOLVER_LABEL[c.solver] ?? c.solver}</dd>
+        <dt>実行日</dt><dd>${c.run_date ? c.run_date.replace("T", " ") : "-"}</dd>
+        <dt>状態</dt><dd><span class="badge ${c.status}">${STATUS_LABEL[c.status] ?? c.status}</span></dd>
+        <dt>計算時間</dt><dd>${formatTiming(c.timing)}</dd>
+      </dl>
+    </section>`;
+
+  const typeSection = c.solver === "openfoam"
+    ? `<section class="panel-section"><h3>解析の種類</h3><dl class="kv">
+         <dt>ソルバー名</dt><dd>${escapeHtml(t.solver_app ?? "-")}</dd>
+         <dt>定常/非定常</dt><dd>${REGIME_LABEL[t.regime] ?? "不明"}</dd>
+         <dt>圧縮性</dt><dd>${COMPRESSIBLE_LABEL[t.compressible] ?? "不明"}</dd>
+         <dt>流れの状態</dt><dd>${FLOW_REGIME_LABEL[t.flow_regime] ?? "不明"}</dd>
+         <dt>相</dt><dd>${PHASE_LABEL[t.phase] ?? "不明"}</dd>
+       </dl></section>`
+    : `<section class="panel-section"><h3>解析の種類</h3><dl class="kv">
+         <dt>線形/非線形</dt><dd>${LINEARITY_LABEL[t.linearity] ?? "不明"}</dd>
+         <dt>静解析/動解析</dt><dd>${PROC_CLASS_LABEL[t.procedure_class] ?? "不明"}</dd>
+         <dt>熱/構造</dt><dd>${PHYSICS_LABEL[t.physics] ?? "不明"}</dd>
+         <dt>解析手続き</dt><dd>${(t.procedures ?? []).join(", ") || "-"}</dd>
+       </dl></section>`;
+
+  const settingsSection = c.solver === "openfoam"
+    ? `<section class="panel-section"><h3>解析設定</h3><dl class="kv">
+         <dt>時間刻み Δt</dt><dd>${s.delta_t ?? "-"}</dd>
+         <dt>開始/終了時刻</dt><dd>${s.start_time ?? "-"} → ${s.end_time ?? "-"}</dd>
+         <dt>ステップ数</dt><dd>${s.steps_note ? escapeHtml(s.steps_note) : (s.steps ?? "不明")}</dd>
+       </dl></section>`
+    : `<section class="panel-section"><h3>解析設定</h3><dl class="kv">
+         <dt>ステップ数</dt><dd>${s.step_count ?? "-"}</dd>
+         <dt>増分制御</dt><dd>${s.increment ? escapeHtml(s.increment) : "自動（既定値）"}</dd>
+       </dl></section>`;
+
+  const detailsSection = c.solver === "openfoam"
+    ? `<section class="panel-section"><h3>詳細項目</h3><dl class="kv">
+         <dt>乱流モデル</dt><dd>${escapeHtml(d.turbulence_model ?? "-")}</dd>
+         <dt>収束判定基準</dt><dd>${escapeHtml(d.convergence_criteria ?? "-")}</dd>
+         <dt>メッシュ生成方法</dt><dd>${(d.mesh_method ?? []).join(", ") || "不明"}</dd>
+         <dt>次元</dt><dd>${DIMENSION_LABEL[d.dimension] ?? "不明"}</dd>
+       </dl></section>`
+    : `<section class="panel-section"><h3>詳細項目</h3><dl class="kv">
+         <dt>固有値解析</dt><dd>${d.has_eigen ? "あり" : "なし"}</dd>
+         <dt>座屈解析</dt><dd>${d.has_buckling ? "あり" : "なし"}</dd>
+         <dt>接触</dt><dd>${d.has_contact ? "あり" : "なし"}</dd>
+         <dt>材料モデル</dt><dd>${(d.materials ?? []).map(m => escapeHtml(m.name) + "（" + (m.properties.join(", ") || "-") + "）").join("<br>") || "-"}</dd>
+         <dt>荷重条件</dt><dd class="tag-list">${(d.load_types ?? []).map(x => `<span class="tag">${escapeHtml(x)}</span>`).join("") || "-"}</dd>
+         <dt>要素種別</dt><dd class="tag-list">${(d.element_types ?? []).map(x => `<span class="tag">${escapeHtml(x)}</span>`).join("") || "-"}</dd>
+       </dl></section>`;
+
+  const unsupported = d.mesh_unsupported_elements ?? [];
+  const unsupportedWarning = unsupported.length
+    ? `<div class="warning-box">${unsupported.map(u => `${escapeHtml(u.type)} × ${u.count}`).join("、")}
+         の要素が現在の表示に対応していないため、画像から除外されています。</div>`
+    : "";
+
+  const meshSection = `
+    <section class="panel-section">
+      <h3>メッシュ形状</h3>
+      <img class="mesh-thumb" src="/api/cases/${encodeURIComponent(c.key)}/thumbnail"
+           alt="メッシュ形状"
+           onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'detail', textContent:'画像を生成できませんでした'}))">
+      ${unsupportedWarning}
+    </section>`;
+
+  const memoSection = `
+    <section class="panel-section">
+      <h3>メモ</h3>
+      <textarea class="memo" id="memoBox">${escapeHtml(c.memo)}</textarea>
+    </section>`;
+
+  return errorBox + summarySection + meshSection + typeSection + settingsSection + detailsSection + pathSection + memoSection;
+}
+
+function formatTiming(timing) {
+  if (!timing) return '<span class="detail">計測不可</span>';
+  if ("total_time_s" in timing) {
+    return `${timing.total_time_s.toFixed(2)}s<div class="detail">CPU/実時間の区別なし</div>`;
+  }
+  return `CPU: ${timing.cpu_time_s.toFixed(2)}s<div class="detail">実時間: ${timing.wall_time_s.toFixed(0)}s</div>`;
+}
+
+function timingSortValue(timing) {
+  if (!timing) return -1;
+  return timing.cpu_time_s ?? timing.total_time_s ?? -1;
+}
+
+function escapeHtml(s) {
+  return (s ?? "").toString()
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+document.querySelectorAll("th[data-key]").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (sortKey === key) { sortAsc = !sortAsc; } else { sortKey = key; sortAsc = true; }
+    render();
+  });
+});
+
+document.getElementById("refreshBtn").addEventListener("click", fetchCases);
+document.getElementById("searchBox").addEventListener("input", render);
+document.getElementById("closeBtn").addEventListener("click", closeDetail);
+document.getElementById("overlay").addEventListener("click", closeDetail);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
+
+fetchCases();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# アプリが実行時に生成するファイル（元の解析結果ファイルとは別置きの生成物）
+app/data/memos.json
+app/data/thumbnails/*
+!app/data/thumbnails/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
