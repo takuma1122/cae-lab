@@ -10,6 +10,10 @@ a lightweight alternative to full CAE-PDM systems for small teams. The app UI it
 
 以下、日本語での詳細説明です。
 
+![一覧画面](docs/images/list-view.png)
+
+![詳細パネル（メッシュ形状サムネイル表示）](docs/images/detail-panel.png)
+
 ## 目的
 
 CAE解析者は解析結果ファイルをフォルダに平置きしがちで、後から見返すのが困難になりやすい。
